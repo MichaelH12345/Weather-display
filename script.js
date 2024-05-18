@@ -7,7 +7,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getWeather() {
         fetch(`http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.json();
+            })
             .then(data => {
                 const condition = data.weather[0].main.toLowerCase();
                 const temp = data.main.temp;
@@ -27,7 +32,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 temperature.textContent = `${temp}°C`;
                 bottomText.textContent = "Might need your sunnies, umbrella or both!";
             })
-            .catch(error => console.error('Error fetching weather data:', error));
+            .catch(error => {
+                console.error('Error fetching weather data:', error);
+                weatherText.textContent = 'Error loading weather data';
+            });
     }
 
     getWeather();
