@@ -1,0 +1,66 @@
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+}
+
+.weather-container {
+    text-align: center;
+}
+
+.weather-text {
+    font-size: 48px;
+    color: purple;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeIn 2s forwards;
+}
+
+.temperature {
+    font-size: 36px;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeIn 2s 2s forwards;
+}
+
+.bottom-text {
+    font-size: 24px;
+    opacity: 0;
+    animation: fadeIn 2s 4s forwards;
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes cloudMove {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+@keyframes rainDrop {
+    0% {
+        transform: translateY(-100%);
+    }
+    100% {
+        transform: translateY(0);
+    }
+}
+
+.weather-text.cloudy {
+    animation: cloudMove 2s ease-out forwards;
+}
+
+.weather-text.rainy {
+    animation: rainDrop 2s ease-out forwards;
+}
