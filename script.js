@@ -6,7 +6,9 @@ document.addEventListener("DOMContentLoaded", function() {
     const bottomText = document.getElementById('bottomText');
 
     function getWeather() {
-        fetch(`http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`)
+        const apiUrl = `http://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+
+        fetch(apiUrl)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok ' + response.statusText);
