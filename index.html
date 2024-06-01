@@ -1,17 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weather Display</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="pageTitle">Live Departures</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: black; /* Set background color to black */
+    color: white; /* Set text color to white */
+    overflow: hidden; /* Hide scrollbar */
+}
+
+.departure-container {
+    width: 100%;
+    max-width: 1920px; /* Set maximum width */
+    margin: 0 auto;
+    padding: 20px;
+    position: relative;
+}
+
+.sub-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 60px; /* Increase font size by 15 */
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th, td {
+    padding: 15px; /* Increase padding */
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+    font-size: 40px; /* Increase font size by 15 */
+}
+
+th {
+    background-color: black; /* Set background color to black */
+    color: white; /* Set text color to white */
+}
+
+iframe {
+    width: 1920px; /* Set iframe width */
+    height: 1080px; /* Set iframe height */
+    border: none;
+    margin-bottom: 20px;
+}
+
+#departureTableContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+#pageCounter, #clock {
+    position: fixed;
+    bottom: 20px;
+    font-size: 55px; /* Reduce font size by 5 */
+    font-weight: bold;
+}
+
+#pageCounter {
+    left: 20px;
+}
+
+#clock {
+    right: 20px;
+}
+
+.hidden {
+    display: none;
+}
+</style>
 </head>
 <body>
-    <div class="weather-container">
-        <div id="weatherText" class="weather-text">Loading...</div>
-        <div id="temperature" class="temperature"></div>
-        <div id="bottomText" class="bottom-text"></div>
-    </div>
-    <script src="script.js"></script>
+
+<div class="departure-container">
+    <div class="sub-title" id="stationName"></div>
+    <label for="stationInput" id="stationLabel">Enter Station Name:</label>
+    <input type="text" id="stationInput" name="stationInput">
+    <button id="getDeparturesButton" onclick="fetchAndInitializeDepartureBoard()">Get Departures</button>
+    <table>
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Destination</th>
+                <th>Plat</th>
+                <th>Expected</th>
+                <th>Operator</th> <!-- New column for operator -->
+            </tr>
+        </thead>
+        <tbody id="departureTableBody">
+            <!-- Departure information will be dynamically inserted here -->
+        </tbody>
+    </table>
+    <div id="pageCounter">Page 1 of <span id="totalPages"></span></div>
+    <div id="clock"></div>
+</div>
+
+<script>
+// Function to format departure time (remove date and seconds)
+function formatDepartureTime(time) {
+    return time.substring(11, 16); // Extract hours and minutes from the time string
+}
+
+// Function to handle pagination with overflow
+function handlePaginationWithOverflow(departures, pageSize) {
+    const pages = paginateDepartures(departures, pageSize);
+    let currentPage = 0; // Start from page 0
+    displayDeparturePage(pages[currentPage]);
+    displayPagination(currentPage + 1, pages.length);
+
+    setInterval(() => {
+        currentPage = (currentPage + 1) % pages.length; // Move to the next page, looping back to the first page if needed
+        displayDeparturePage(pages[currentPage]);
+        displayPagination(currentPage + 1, pages.length);
+    }, 10000); // Switch pages every 10 seconds
+}
+
+// Function to split departure services into pages
+function paginateDepartures(departures, pageSize) {
+    const pages = [];
+    for (let i = 0; i < departures.length && pages.length < 5; i += pageSize) {
+        pages.push(departures.slice(i, i + pageSize));
+    }
+    return pages;
+}
+
+// Function to display pagination
+function displayPagination(currentPage, totalPages) {
+    document.getElementById('pageCounter').textContent = `Page ${currentPage} of ${totalPages}`;
+}
+
+// Function to display departure page
+function displayDeparturePage(departurePage) {
+    let departureRowsHTML = '';
+    departurePage.forEach(service => {
+        const departureTime = formatDepartureTime(service.std);
+        const destination = service.destination[0].locationName;
+        const platform = service.platform || '-';
+        let status;
+        if (service.isCancelled) {
+            status = 'Cancelled';
+        } else {
+            const expectedTime = service.etd ? formatDepartureTime(service.etd) : '-';
+            status = departureTime === expectedTime ? 'On Time' : expectedTime;
+        }
+        const operator = service.operator ? service.operator : '-'; // Access the operator directly
+        departureRowsHTML += `<tr><td>${departureTime}</td><td>${destination}</td><td>${platform}</td><td>${status}</td><td>${operator}</td></tr>`;
+    });
+    document.getElementById('departureTableBody').innerHTML = departureRowsHTML;
+}
+
+// Function to fetch and initialize departure board
+function fetchAndInitializeDepartureBoard() {
+    const stationName = document.getElementById('stationInput').value;
+    // Remove button once the station is entered
+    document.getElementById('stationInput').classList.add('hidden');
+    document.getElementById('getDeparturesButton').classList.add('hidden');
+    document.getElementById('stationLabel').classList.add('hidden');
+
+    fetch(`https://national-rail-api.davwheat.dev/staffdepartures/${stationName}?expand=true`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.trainServices && data.trainServices.length > 0) {
+                const locationName = data.trainServices[0].origin[0].locationName; // Get the location name from the first service's origin
+                document.getElementById('pageTitle').textContent = `${locationName} Departures`; // Update the title
+                document.getElementById('stationName').textContent = `${locationName} Departures`; // Update the station name
+                handlePaginationWithOverflow(data.trainServices.slice(0, 25), 6); // Display 6 services per page
+                document.getElementById('totalPages').textContent = '5'; // Update total pages in the page counter
+            } else {
+                console.error('No departure services available.');
+            }
+        })
+        .catch(error => console.error('Error fetching departure services:', error));
+}
+
+// Function to display current time
+function displayCurrentTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+}
+
+
+// Update clock every second
+setInterval(displayCurrentTime, 1000);
+
+// Function to fetch and initialize departure board
+function fetchAndInitializeDepartureBoard() {
+    const stationName = document.getElementById('stationInput').value;
+    // Remove button once the station is entered
+    document.getElementById('stationInput').disabled = true;
+    document.getElementById('getDeparturesButton').style.display = 'none'; // Hide the button
+    fetch(`https://national-rail-api.davwheat.dev/staffdepartures/${stationName}?expand=true`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.trainServices && data.trainServices.length > 0) {
+                const locationName = data.trainServices[0].origin[0].locationName; // Get the location name from the first service's origin
+                document.getElementById('pageTitle').textContent = `${locationName} Departures`; // Update the title
+                document.getElementById('stationName').textContent = `${locationName} Departures`; // Update the station name
+                handlePaginationWithOverflow(data.trainServices.slice(0, 25), 6); // Display 6 services per page
+                document.getElementById('totalPages').textContent = '5'; // Update total pages in the page counter
+            } else {
+                console.error('No departure services available.');
+            }
+        })
+        .catch(error => console.error('Error fetching departure services:', error));
+}
+</script>
+
 </body>
 </html>
